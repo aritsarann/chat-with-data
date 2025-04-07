@@ -42,13 +42,13 @@ with st.expander("**📊 Data Snapshot**"):
 
 
 try:
-    key = st.secrets['gemini_api_key']
+    #key = st.secrets['gemini_api_key']
+    key = "AIzaSyCDsZOAFz_WueVa7ciwtcNNsywOaaIwnz0"
     genai.configure(api_key=key)
     model = genai.GenerativeModel('gemini-2.0-flash-lite')
 
     if "chat" not in st.session_state:
         st.session_state.chat = []
-
 
     def role_to_streamlit(role:str) -> str:
         if role == 'model':
@@ -111,7 +111,7 @@ try:
         )
         code_response = model.generate_content(prompt)
         code_text = code_response.text.replace("```", "#")  
-        exec(code_text)  # รันโค้ดที่ถูกสร้างขึ้นจากโมเดล
+        
 
         try:
         # STEP 2: Execute the Python code and generate result
