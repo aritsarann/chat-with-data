@@ -3,8 +3,7 @@ import google.generativeai as genai
 import pathlib
 import textwrap
 import pandas as pd
-#from IPython.display import display
-#from IPython.display import Markdown
+
 
 # data
 url1 = "https://raw.githubusercontent.com/aritsarann/chat_with_gemini/refs/heads/main/transactions.csv"
@@ -19,11 +18,27 @@ data_dict_text = '\n'.join('- ' + data_dict_df['column_name'] +
                            ': ' +data_dict_df['data_type'] +
                            '. ' +data_dict_df['description'])
 
-def to_markdown(text):
-  text = text.replace('•', '*')
-  return Markdown(textwrap.indent(text, '> ', predicate=lambda _: True))
 
-
+st.title('🔍 LiquorLens: Insight on Tap')
+st.markdown(""" 
+This system is designed to assist you with detailed insights on liquor sales transactions, inventory, and vendor performance.
+""")
+# Display an expandable section (accordion) for Data Overview
+with st.expander("**📊 Data Snapshot**"):
+    st.markdown("""
+    This dataset (CSV file) contains transaction data with the following columns:
+      - `invoice_and_item_number`: Unique identifier for each product in the store order.
+      - `date`: Date of the transaction.
+      - `store_name`: Name of the store.
+      - `city`: The city where the store is located.
+      - `category_name`: Category of the liquor.
+      - `vendor_name`: Vendor's name of the liquor product.
+      - `state_bottle_retail`: The cost per bottle of the liquor.
+      - `bottles_sold`: The number of bottles sold.
+      - `sale_dollars`: Total amount for the sale (number of bottles * cost per bottle).
+    """)
+    st.markdown("**Sample Data:**")
+    st.write(transaction_df.head(4))
 
 
 try:
@@ -32,20 +47,20 @@ try:
     model = genai.GenerativeModel('gemini-2.0-flash-lite')
 
     if "chat" not in st.session_state:
-        st.session_state.chat = model.start_chat(history=[])
-    st.title('Gemini Pro Test')
+        st.session_state.chat = []
+
 
     def role_to_streamlit(role:str) -> str:
         if role == 'model':
             return 'assistant'
         else:
             return role
-        
-    for message in st.session_state.chat.history:
-        with st.chat_message(role_to_streamlit(message.role)):
-            st.markdown(message.parts[0].text)
 
-    if question := st.chat_input("Text Here"):
+    for role, message in st.session_state.chat:
+        st.chat_message(role).markdown(message)
+
+    if question := st.chat_input("Ask your question here, e.g. 'What is the total sales in January 2025?'"):
+        st.session_state.chat.append(('user', question))
         st.chat_message('user').markdown(question)
 
         prompt_template = f"""
@@ -96,24 +111,32 @@ try:
         )
         code_response = model.generate_content(prompt)
         code_text = code_response.text.replace("```", "#")  
-        
+        exec(code_text)  # รันโค้ดที่ถูกสร้างขึ้นจากโมเดล
+
         try:
         # STEP 2: Execute the Python code and generate result
-            exec(code_text)  # รันโค้ดที่ถูกสร้างขึ้นจากโมเดล
+            exec(code_text)
 
             explain_the_results = f'''
             the user asked {question}, 
             here is the results {ANSWER}
-            answer the question and summarize the answer, 
-            include your opinions of the persona of this customer
+            
+            Now, provide a professional answer based on the data.
+            - Summarize the result clearly.
+            - Offer meaningful business insight or interpretation.
+            - Suggest potential actions or strategies.
+            - If relevant, mention patterns, anomalies, or recommendations.
+
+            Keep the tone analytical but friendly, like a smart assistant.
             '''
         except Exception as e:
             st.error(f"❌ Error while executing generated code: {e}")
-        #response = st.session_state.chat.send_message(prompt)
-        response = model.generate_content(explain_the_results)
 
-        with st.chat_message('assistant'):
-            st.markdown(response.text)
+        response = model.generate_content(explain_the_results)
+        bot_response = response.text
+        st.session_state.chat.append(('assistant', bot_response))
+        st.chat_message('assistant').markdown(bot_response)
+
     
 except Exception as e :
     st.error(f'An error occurred {e}')
